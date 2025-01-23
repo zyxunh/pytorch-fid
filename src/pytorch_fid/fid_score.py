@@ -42,6 +42,7 @@ import torchvision.transforms as TF
 from PIL import Image
 from scipy import linalg
 from torch.nn.functional import adaptive_avg_pool2d
+from unhcv.common.utils import obj_dump
 
 try:
     from tqdm import tqdm
@@ -90,6 +91,9 @@ parser.add_argument(
     nargs=2,
     help=("Paths to the generated images or " "to .npz statistic files"),
 )
+parser.add_argument(
+    "--report_path",
+    type=str, default=None)
 
 IMAGE_EXTENSIONS = {"bmp", "jpg", "jpeg", "pgm", "png", "ppm", "tif", "tiff", "webp"}
 
@@ -143,7 +147,7 @@ def get_activations(
         )
         batch_size = len(files)
 
-    dataset = ImagePathDataset(files, transforms=TF.ToTensor())
+    dataset = ImagePathDataset(files, transforms=TF.Compose([TF.Resize((512, 512)), TF.ToTensor()]))
     dataloader = torch.utils.data.DataLoader(
         dataset,
         batch_size=batch_size,
@@ -319,7 +323,6 @@ def save_fid_stats(paths, batch_size, device, dims, num_workers=1):
 
     np.savez_compressed(paths[1], mu=m1, sigma=s1)
 
-
 def main():
     args = parser.parse_args()
 
@@ -348,6 +351,8 @@ def main():
     fid_value = calculate_fid_given_paths(
         args.path, args.batch_size, device, args.dims, num_workers
     )
+    if args.report_path is not None:
+        obj_dump(os.path.join(args.report_path, 'fid', 'fid.yml'), dict(FID=float(fid_value)))
     print("FID: ", fid_value)
 
 
